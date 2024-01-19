@@ -338,11 +338,11 @@ void loop(void)
 
       // the following lines are for testing purposes
       // they print the values to the serial plotter when the arduino is connected to the computer and is running
-//      Serial.print("CO raw measure: ");
-//      Serial.println(coRaw);
-//
-//      Serial.print("CO PPM measure: ");
-//      Serial.println(ppmCO);
+      Serial.print("CO raw measure: ");
+      Serial.println(coRaw);
+
+      Serial.print("CO PPM measure: ");
+      Serial.println(ppmCO);
       
       Serial.print("CO2 Raw measure: ");
       Serial.println(co2Raw);
