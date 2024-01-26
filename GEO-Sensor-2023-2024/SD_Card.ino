@@ -14,9 +14,9 @@ bool printHeader() {
         myFile.print(",      ");
         myFile.print("Hora");  //Timestamp
         myFile.print(",      ");
-        myFile.print("CO");  //CO concentration, ppm
+        myFile.print("CO (PPM)");  //CO concentration, ppm
         myFile.print(",      ");
-        myFile.print("CO RAW");  //Raw CO output
+        myFile.print("CO (V)");  //Raw CO output
         myFile.print(",      ");
         myFile.print("CO2");    //CO2 concentration, ppm
         myFile.print(",      ");

@@ -37,6 +37,7 @@ class CO {
     float nA_per_PPM = 3.86;  //Printed on back of sensor
     
     double measure();
+    double spec();
 };
 
 #endif //CO_H

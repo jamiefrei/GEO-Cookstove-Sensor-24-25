@@ -54,10 +54,14 @@ double CO::measure() { //Returns concentration of CO in ppm
     }
     ADC1Result = ADC1Result >> 4;
 
-    PPM = ((float)ADC0Result - (float)ADC0Result_Zero) / (float)65536 * Arduino_Vref / (float)Rgain * (float)1E9 / nA_per_PPM;
-    Temperature = ((float)87 / ULP_Vdd * ((float)ADC1Result / (float)65536 * Arduino_Vref)) - (float)18;
-    
-    return PPM;
+    return ADC0Result;
   }
 
 }
+
+double CO::spec() {
+    PPM = ((float)ADC0Result - (float)ADC0Result_Zero) / ((float)65536 * Arduino_Vref * (float)Rgain * (float)1E-9 * nA_per_PPM);
+    Temperature = ((float)87 / ULP_Vdd * ((float)ADC1Result / (float)65536 * Arduino_Vref)) - (float)18;
+
+    return PPM;
+    }

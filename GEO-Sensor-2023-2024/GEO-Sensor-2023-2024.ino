@@ -65,6 +65,7 @@ double ppmCO2 = 0;
 double ppmPrelimCO2 = 0.0;
 double coRaw = 0.0;
 double co2Raw = 0.0;
+double ppmCOSpec = 0.0;
 
 // Volatile variables are involved in state machines and are meant to change often
 volatile bool togglePushed = false;
@@ -313,7 +314,7 @@ void loop(void)
     ////////////////////////////////////////////////////////////////////////////////////
     case wait:
       // Draw wait screen
-      printMeasureScreen(measureArrowPos, ppmCO, ppmCO2, pm2_5);
+      printMeasureScreen(measureArrowPos, ppmCOSpec, ppmCO2, pm2_5);
       // Control toggle buttons
       measureWaitButtons();
       waitDebounce++;
@@ -331,6 +332,8 @@ void loop(void)
       
       coRaw = co.measure();
       ppmCO = (coRaw * calibratedSlopeCO) + calibratedInterceptCO;           // Concentration of CO in parts per million
+
+      ppmCOSpec = co.spec();
       
       co2Raw = co2.measure();
       ppmCO2 = (co2Raw * calibratedSlopeCO2) + calibratedInterceptCO2;   // Concentration of CO2 in parts per million
@@ -342,37 +345,25 @@ void loop(void)
       Serial.println(coRaw);
 
       Serial.print("CO PPM measure: ");
-      Serial.println(ppmCO);
-      
-      Serial.print("CO2 Raw measure: ");
-      Serial.println(co2Raw);
-
-      Serial.print("CO2 PPM measure: ");
-      Serial.println(ppmCO2);
+      Serial.println(ppmCOSpec);
       
       
-      printMeasureScreen(measureArrowPos, ppmCO, ppmCO2, pm2_5);
+      printMeasureScreen(measureArrowPos, ppmCOSpec, ppmCO2, pm2_5);
       break;
     ////////////////////////////////////////////////////////////////////////////////////
     // RECORD State: Write data to SD Card file and draw Wait/Measure/Record screen
     ////////////////////////////////////////////////////////////////////////////////////
     case record:
-      // printMeasureScreen(measureArrowPos, ppmCO, ppmCO2, pm2_5);               // do we need to print to measure screen here? it prints in measure state already
       measureWaitButtons();
-      writeSuccess = writeToFile(rtc.now(), ppmCO, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
+      writeSuccess = writeToFile(rtc.now(), ppmCOSpec, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
       // the following lines are for testing purposes
       // they print the values to the serial plotter when the arduino is connected to the computer and is running
-//      Serial.print("CO raw record: ");
-//      Serial.println(coRaw);
+      Serial.print("CO raw record: ");
+      Serial.println(coRaw);
 
-//      Serial.print("CO PPM record: ");
-//      Serial.println(ppmCO);
+      Serial.print("CO PPM record: ");
+      Serial.println(ppmCOSpec);
       
-      Serial.print("CO2 Raw record: ");
-      Serial.println(co2Raw);
-
-      Serial.print("CO2 PPM record: ");
-      Serial.println(ppmCO2);
       break;
     ////////////////////////////////////////////////////////////////////////////////////
     // ERROR State: Display error message

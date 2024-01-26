@@ -68,7 +68,7 @@ void printMeasureScreen(int arrowPosition, double co, double co2, String pm2_5)
   u8g2.drawStr(MEASUREMENT_X_POS, CO_Y_POS, " CO:");
   u8g2.drawStr(MEASUREMENT_X_POS, CO2_Y_POS, "CO2:");
   u8g2.drawStr(MEASUREMENT_X_POS, PM_Y_POS, " PM:");
-  u8g2.drawStr(MEASUREMENT_X_POS+CO_NUM_OFFSET, CO_Y_POS, String(round(co)).c_str()) + "     ";
+  u8g2.drawStr(MEASUREMENT_X_POS+CO_NUM_OFFSET, CO_Y_POS, String(co).c_str()) + "     ";
   u8g2.drawStr(MEASUREMENT_X_POS+CO2_NUM_OFFSET, CO2_Y_POS, String(round(co2)).c_str());
   u8g2.drawStr(MEASUREMENT_X_POS+PM_NUM_OFFSET, PM_Y_POS, pm2_5.c_str());
   u8g2.setFont(u8g2_font_tinytim_tr);
