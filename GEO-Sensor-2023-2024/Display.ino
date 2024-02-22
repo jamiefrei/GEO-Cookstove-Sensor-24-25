@@ -55,12 +55,7 @@ void printMenuScreen(int arrowPosition)
 
 // Prints measure/record/wait screen
 void printMeasureScreen(int arrowPosition, double co, double co2, String pm2_5) 
-{
-//  // For testing
-//  Serial.print("CO printMeasureScreen: ");
-//  Serial.println(co);
-
-  
+{  
   u8g2.setDrawColor(1);
   u8g2.setFont(u8g2_font_8x13_mr);  // choose a suitable font
   // Draw the strings
@@ -68,16 +63,23 @@ void printMeasureScreen(int arrowPosition, double co, double co2, String pm2_5)
   u8g2.drawStr(MEASUREMENT_X_POS, CO_Y_POS, " CO:");
   u8g2.drawStr(MEASUREMENT_X_POS, CO2_Y_POS, "CO2:");
   u8g2.drawStr(MEASUREMENT_X_POS, PM_Y_POS, " PM:");
-  u8g2.drawStr(MEASUREMENT_X_POS+CO_NUM_OFFSET, CO_Y_POS, String(co).c_str()) + "     ";
-  u8g2.drawStr(MEASUREMENT_X_POS+CO2_NUM_OFFSET, CO2_Y_POS, String(round(co2)).c_str());
+
+  // Convert to string and print the values of co, co2, and pm2_5
+  u8g2.drawStr(MEASUREMENT_X_POS+CO_NUM_OFFSET, CO_Y_POS, String(co).c_str());
+  u8g2.drawStr(MEASUREMENT_X_POS+CO2_NUM_OFFSET, CO2_Y_POS, String(co2).c_str());
   u8g2.drawStr(MEASUREMENT_X_POS+PM_NUM_OFFSET, PM_Y_POS, pm2_5.c_str());
+
+  // Print the ppm label next to values
   u8g2.setFont(u8g2_font_tinytim_tr);
   u8g2.drawStr(MEASUREMENT_X_POS+CO_PPM_OFFSET, CO_Y_POS, "ppm");
   u8g2.drawStr(MEASUREMENT_X_POS+CO2_PPM_OFFSET, CO2_Y_POS, "ppm");
   u8g2.drawStr(MEASUREMENT_X_POS+PM_PPM_OFFSET, PM_Y_POS, "ppm");
+
+  // Print menu options at the bottom
   u8g2.drawStr(25,MEASURE_ARROW_Y_POS,"Salir?");
   u8g2.drawStr(STOP_MEASURE_CHOICE,MEASURE_ARROW_Y_POS,"Si");
   u8g2.drawStr(DONT_STOP_MEASURE_CHOICE,MEASURE_ARROW_Y_POS,"No");
+  
   // What you do is keep track of the arrow position
   // Then you draw a black box over the other options
   // So the arrow moves as you push the toggle button

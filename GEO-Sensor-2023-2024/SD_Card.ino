@@ -16,7 +16,7 @@ bool printHeader() {
         myFile.print(",      ");
         myFile.print("CO (PPM)");  //CO concentration, ppm
         myFile.print(",      ");
-        myFile.print("CO (V)");  //Raw CO output
+        myFile.print("CO (RAW)");  //Raw CO output
         myFile.print(",      ");
         myFile.print("CO2");    //CO2 concentration, ppm
         myFile.print(",      ");
@@ -38,7 +38,7 @@ bool printHeader() {
 }
 
 // Writes most recent values to the csv file
-bool writeToFile(DateTime now, double CO, double CO_raw, double CO2, double CO2_raw, String pm2_5, String pm10) {
+bool writeToFile(DateTime now, double CO, int CO_raw, double CO2, double CO2_raw, String pm2_5, String pm10) {
   
     myFile = SD.open(fileName, FILE_WRITE);
 

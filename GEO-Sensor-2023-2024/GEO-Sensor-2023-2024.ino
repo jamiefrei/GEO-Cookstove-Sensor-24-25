@@ -58,14 +58,16 @@ String fileName = "datos.csv";
 String pm2_5;
 String pm10;
 double ppmCO = 0;
-double C_x = 0.0; // C_x is defined in the CO sensor spec sheet
-double V_gas_0 = 46.5; //in mV
+//double C_x = 0.0; // C_x is defined in the CO sensor spec sheet
+//double V_gas_0 = 46.5; //in mV        ***not needed anymore
 
 double ppmCO2 = 0;
 double ppmPrelimCO2 = 0.0;
 double coRaw = 0.0;
 double co2Raw = 0.0;
 double ppmCOSpec = 0.0;
+double ppmCOcal = 0.0;
+int ppmCOint = 0;
 
 // Volatile variables are involved in state machines and are meant to change often
 volatile bool togglePushed = false;
@@ -78,14 +80,13 @@ volatile int optionsArrowPos = 20;
 volatile int waitDebounce = 0;
 volatile int measureTime = 150; //Every 15 is one second
 
-
 // Calibrated parameters for mapping the CO and CO2 values
-double calibratedInterceptCO = -881.3;//-2821.8;//-431.29;
-double calibratedSlopeCO = 19.032;//34.492;//30.036;
-//double prelimInterceptCO2 = -254.05;                            
-//double prelimSlopeCO2 = 2.1045;
-double calibratedInterceptCO2 = 35.02;//-1320.7;//-254.05;
-double calibratedSlopeCO2 = 0.8504;//1.6013;//2.1045;
+double calibratedInterceptCO = 0;     // this is the raw output reading when ppm of CO is 0
+double calibratedSlopeCO = 12.777;      // this value was calculated frpm a 250 ppm increase divided by 20 unit increase in raw output (250 / 20)
+double coZero = 497;                  // zero value, subtract this from coRaw
+
+double calibratedInterceptCO2 = 35.02;
+double calibratedSlopeCO2 = 0.8504;
 
 // Enumeration of state variable for the state machine
 enum state {menu, wait, measure, record, error, options};
@@ -314,7 +315,7 @@ void loop(void)
     ////////////////////////////////////////////////////////////////////////////////////
     case wait:
       // Draw wait screen
-      printMeasureScreen(measureArrowPos, ppmCOSpec, ppmCO2, pm2_5);
+      printMeasureScreen(measureArrowPos, ppmCOcal, coRaw, pm2_5);
       // Control toggle buttons
       measureWaitButtons();
       waitDebounce++;
@@ -324,45 +325,55 @@ void loop(void)
     ////////////////////////////////////////////////////////////////////////////////////
     case measure:
       measureWaitButtons();
-      //these three lines were commented...
+      
       pm.measure();         // PM sensor reads measurements, variables in PM library will contain the results
       pm2_5 = pm.pm2_5;     // Concentration of PM that is 2.5micrometers
       pm10 = pm.pm10;       // Concentration of PM that is 10micrometers
       
-      
+      //CO
       coRaw = co.measure();
-      ppmCO = (coRaw * calibratedSlopeCO) + calibratedInterceptCO;           // Concentration of CO in parts per million
-
-      ppmCOSpec = co.spec();
+      //This next line subtracts coZero which is a measured rawdata reading in a "zero" ppm CO environment
+      ppmCOcal = (coRaw - coZero) * calibratedSlopeCO + calibratedInterceptCO;
       
+      //Below is a calibration equation that I was testing based on data taken on Feb. 13, 2024
+      //The five data points I used to create the line are (496,0), (516,250), (536,500), (556,750), (576,1000)
+      //I calculated that if x is the raw CO reading from the sensor then the CO concentration is equal to f(x) = 12.5x - 6200
+      //For every 250ppm increase in CO we saw a 20 unit increase in raw data output hence the slope 250 / 20 = 12.5
+      //When graphing data points the y intercept was at point (0,-6200) with the x-intercept of (496,0)
+
+      // f(x)  =  12.5     x    - 6200
+//      ppmCOcal = (12.5 * coRaw) - 6215.0;
+      
+      //Because there are no negative concentrations of CO, if the value is negative we can set it to zero
+//      if (ppmCOcal < 0) { ppmCOcal = 0; }
+
+      Serial.print("CO raw measure: ");
+      Serial.println(coRaw); 
+
+      Serial.print("CO PPM cal measure: ");
+      Serial.println(ppmCOcal);
+
+      //CO2
       co2Raw = co2.measure();
       ppmCO2 = (co2Raw * calibratedSlopeCO2) + calibratedInterceptCO2;   // Concentration of CO2 in parts per million
 
-
-      // the following lines are for testing purposes
-      // they print the values to the serial plotter when the arduino is connected to the computer and is running
-      Serial.print("CO raw measure: ");
-      Serial.println(coRaw);
-
-      Serial.print("CO PPM measure: ");
-      Serial.println(ppmCOSpec);
-      
-      
-      printMeasureScreen(measureArrowPos, ppmCOSpec, ppmCO2, pm2_5);
+      // we changed the ppmCO2 to coRaw just for testing purposes *******************************************
+      printMeasureScreen(measureArrowPos, ppmCOcal, coRaw, pm2_5);
       break;
     ////////////////////////////////////////////////////////////////////////////////////
     // RECORD State: Write data to SD Card file and draw Wait/Measure/Record screen
     ////////////////////////////////////////////////////////////////////////////////////
     case record:
       measureWaitButtons();
-      writeSuccess = writeToFile(rtc.now(), ppmCOSpec, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
-      // the following lines are for testing purposes
-      // they print the values to the serial plotter when the arduino is connected to the computer and is running
-      Serial.print("CO raw record: ");
-      Serial.println(coRaw);
 
-      Serial.print("CO PPM record: ");
-      Serial.println(ppmCOSpec);
+      // we changed the ppmCO2 to coCal just for testing purposes *******************************************
+      writeSuccess = writeToFile(rtc.now(), ppmCOcal, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
+      
+//      Serial.print("CO raw after record: ");
+//      Serial.println(coRaw);
+//
+//      Serial.print("CO PPM after record: ");
+//      Serial.println(ppmCOSpec);
       
       break;
     ////////////////////////////////////////////////////////////////////////////////////
