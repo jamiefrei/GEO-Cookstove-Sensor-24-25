@@ -82,8 +82,8 @@ volatile int measureTime = 150; //Every 15 is one second
 
 // Calibrated parameters for mapping the CO and CO2 values
 double calibratedInterceptCO = 0;     // this is the raw output reading when ppm of CO is 0
-double calibratedSlopeCO = 12.777;      // this value was calculated frpm a 250 ppm increase divided by 20 unit increase in raw output (250 / 20)
-double coZero = 497;                  // zero value, subtract this from coRaw
+double calibratedSlopeCO = 11.673;      // this value was calculated frpm a 250 ppm increase divided by 20 unit increase in raw output (250 / 20)
+double coZero = 497.7;                  // zero value, subtract this from coRaw
 
 double calibratedInterceptCO2 = 35.02;
 double calibratedSlopeCO2 = 0.8504;
@@ -330,7 +330,7 @@ void loop(void)
       pm2_5 = pm.pm2_5;     // Concentration of PM that is 2.5micrometers
       pm10 = pm.pm10;       // Concentration of PM that is 10micrometers
       
-      //CO
+      //          *************************************** CO measuring ***************************************
       coRaw = co.measure();
       //This next line subtracts coZero which is a measured rawdata reading in a "zero" ppm CO environment
       ppmCOcal = (coRaw - coZero) * calibratedSlopeCO + calibratedInterceptCO;
@@ -340,25 +340,28 @@ void loop(void)
       //I calculated that if x is the raw CO reading from the sensor then the CO concentration is equal to f(x) = 12.5x - 6200
       //For every 250ppm increase in CO we saw a 20 unit increase in raw data output hence the slope 250 / 20 = 12.5
       //When graphing data points the y intercept was at point (0,-6200) with the x-intercept of (496,0)
+      //We would only use the below equation if we chose not to use the above equation with the coZero value
 
-      // f(x)  =  12.5     x    - 6200
+      //   f(x)  =  12.5     x    - 6200
 //      ppmCOcal = (12.5 * coRaw) - 6215.0;
-      
-      //Because there are no negative concentrations of CO, if the value is negative we can set it to zero
-//      if (ppmCOcal < 0) { ppmCOcal = 0; }
 
-      Serial.print("CO raw measure: ");
+
+      //Before saving data to SD card and printing to screen, check if the number is negative
+      //Because there are no negative concentrations of CO, if the value is negative we can set it to zero
+      if (ppmCOcal < 0) { ppmCOcal = 0; }
+
+      //Serial.print statements for realtime readings in the serial monitor
+      Serial.print("CO raw reading: ");
       Serial.println(coRaw); 
 
-      Serial.print("CO PPM cal measure: ");
+      Serial.print("CO PPM calibrated reading: ");
       Serial.println(ppmCOcal);
 
-      //CO2
+      //          *************************************** CO2 measuring ***************************************
       co2Raw = co2.measure();
       ppmCO2 = (co2Raw * calibratedSlopeCO2) + calibratedInterceptCO2;   // Concentration of CO2 in parts per million
 
-      // we changed the ppmCO2 to coRaw just for testing purposes *******************************************
-      printMeasureScreen(measureArrowPos, ppmCOcal, coRaw, pm2_5);
+      printMeasureScreen(measureArrowPos, ppmCOcal, ppmCO2, pm2_5);
       break;
     ////////////////////////////////////////////////////////////////////////////////////
     // RECORD State: Write data to SD Card file and draw Wait/Measure/Record screen
@@ -366,8 +369,7 @@ void loop(void)
     case record:
       measureWaitButtons();
 
-      // we changed the ppmCO2 to coCal just for testing purposes *******************************************
-      writeSuccess = writeToFile(rtc.now(), ppmCOcal, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
+      writeSuccess = writeToFile(rtc.now(), ppmCOcal, coRaw, ppmCO2, ppmCO2, pm2_5, pm10);
       
 //      Serial.print("CO raw after record: ");
 //      Serial.println(coRaw);
@@ -482,6 +484,8 @@ void initSensors(bool pmInit, bool coInit, bool co2Init, bool rtcInit, bool sdIn
   Serial.println("coInit");
   if (coInit)
   {
+
+    // There was never anything here.
 
   }
   Serial.println("rtcInit");
