@@ -58,8 +58,6 @@ String fileName = "datos.csv";
 String pm2_5;
 String pm10;
 double ppmCO = 0;
-//double C_x = 0.0; // C_x is defined in the CO sensor spec sheet
-//double V_gas_0 = 46.5; //in mV        ***not needed anymore
 
 double ppmCO2 = 0;
 double ppmPrelimCO2 = 0.0;
@@ -92,8 +90,7 @@ enum state {menu, wait, measure, record, error, options};
 enum state currentState;
 
 // All initialization in the setup phase
-void setup(void)
-{
+void setup(void) {
   // Setup Terminal
   Serial.begin(9600);
   Serial3.begin(9600);  // Serial3 will be used to communicate with the PM sensor
@@ -148,18 +145,20 @@ void setup(void)
   else {
     Serial.println("failed to make header for file");
   }
+
+
+
+  
 }
 
 // Continuous loop, checks the program state each time to determine what to do
-void loop(void)
-{
+void loop(void) {
   static int fanTimer = 0;
   static bool writeSuccess = false;
   static bool SDCardSuccess = false;
   
   // Perform state update (Mealy).
-  switch(currentState) 
-  { 
+  switch(currentState) { 
     ////////////////////////////////////////////////////////////////////////////////////////
     // MENU State: Stays in menu unless deciding to start measuring or to change options  //
     ////////////////////////////////////////////////////////////////////////////////////////
@@ -195,8 +194,7 @@ void loop(void)
           measureArrowPos = 65;
           measureArrowState = false;
           clearScreen();
-        }
-        else {}
+        } else {}
         selectPushed = false;
       }
       // If waiting enough time, go to Measure
@@ -204,8 +202,7 @@ void loop(void)
         LED_OFF();
         waitDebounce = 0;
         currentState = measure;
-      }
-      else {
+      } else {
         currentState = wait;
       }
       break;
@@ -219,11 +216,9 @@ void loop(void)
           measureArrowPos = 65;
           measureArrowState = false;
           clearScreen();
-        }
-        else {}
+        } else {}
         selectPushed = false;
-      }
-      else {
+      } else {
         currentState = record;
       }
       break;
@@ -237,16 +232,14 @@ void loop(void)
           measureArrowPos = 65;
           measureArrowState = false;
           clearScreen();
-        }
-        else {}
+        } else {}
         selectPushed = false;
       }
       // If the SD Card had an error, go to the ERROR state
       if (writeSuccess) {
         LED_GREEN();
         currentState = wait;
-      }
-      else {
+      } else {
         clearScreen();
         currentState = error;
       }
@@ -385,8 +378,7 @@ void measureWaitButtons() {
       // Move arrow to "Salir: no"
       measureArrowState = false; 
       measureArrowPos = 65;
-    }
-    else { 
+    } else { 
       // Move arrow to "Salir: si"
       measureArrowState = true;
       measureArrowPos = 85;
