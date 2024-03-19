@@ -1,5 +1,5 @@
 // GEO Cookstove Sensor Code
-// Respira Bien 2022-2023
+// Respira Bien 2023-2024
 // Arduino code for the cookstove sensor
 // This file contains setup() and loop(), as well as functions for initializing the sensors
 // There are 8 files that must accompany this one: CO.cpp, CO.h, CO2.h, Display.ino, 
@@ -81,10 +81,9 @@ volatile int waitDebounce = 0;
 volatile int measureTime = 150; //Every 15 is one second
 
 // Calibrated parameters for mapping the CO and CO2 values
-double calibratedInterceptCO = 0;     // this is the raw output reading when ppm of CO is 0
-double calibratedSlopeCO = 11.673;      // this value was calculated frpm a 250 ppm increase divided by 20 unit increase in raw output (250 / 20)
-double coZero = 497.7;                  // zero value, subtract this from coRaw
-
+double calibratedInterceptCO = 0;  
+double calibratedSlopeCO = 11.673;
+double coZero = 497.7;    // zero value, subtract this from coRaw to shift the graph over before multiplying the slope and adding the intercept
 double calibratedInterceptCO2 = 35.02;
 double calibratedSlopeCO2 = 0.8504;
 
@@ -92,6 +91,7 @@ double calibratedSlopeCO2 = 0.8504;
 enum state {menu, wait, measure, record, error, options};
 enum state currentState;
 
+// All initialization in the setup phase
 void setup(void)
 {
   // Setup Terminal
@@ -140,15 +140,6 @@ void setup(void)
   Serial.println("Turn on fan");
   digitalWrite(FAN, HIGH);
 
-  //  String dateDay = (char*)rtc.now().day();
-  //  String dateMonth = (char*)rtc.now().month();
-  //  String dateYear = (char*)rtc.now().year();
-  //  String dateHour = (char*)rtc.now().hour();
-  //  String dateMin = (char*)rtc.now().minute();
-  //  String dateSec = (char*)rtc.now().second();
-  //
-  //  fileName = dateDay + '_' + dateMonth + '_' + dateYear + '_' + dateHour + '_' + dateMin + '_' + dateSec;
-
   // Set up the SD Card file where measurements are stored
   bool makeHeader = printHeader();
   if (makeHeader) {
@@ -159,6 +150,7 @@ void setup(void)
   }
 }
 
+// Continuous loop, checks the program state each time to determine what to do
 void loop(void)
 {
   static int fanTimer = 0;
@@ -168,21 +160,18 @@ void loop(void)
   // Perform state update (Mealy).
   switch(currentState) 
   { 
-    ////////////////////////////////////////////////////////////////////////////////////
-    // MENU State: Stays in menu unless deciding to start measuring or to change options
-    ////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////
+    // MENU State: Stays in menu unless deciding to start measuring or to change options  //
+    ////////////////////////////////////////////////////////////////////////////////////////
     case menu:
-      if (selectPushed) 
-      {
+      if (selectPushed) {
         // Go to Options screen
-        if (menuArrowState) 
-        { 
+        if (menuArrowState) { 
           currentState = options; 
           clearScreen();
         }
         // Go to Measure screen
-        else 
-        { 
+        else { 
           currentState = measure;
           LED_GREEN(); // TODO: Delete
           waitDebounce = 0; 
@@ -192,17 +181,15 @@ void loop(void)
       }
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // WAIT State: Waits for a specified amount of time then goes to MEASURE
-    // Does not put Arduino to sleep because the power source will turn off if
-    // Arduino is not consuming at least 50mah
+    // WAIT State: Waits for a specified amount of time then goes to MEASURE          //
+    // Does not put Arduino to sleep because the power source will turn off if        //
+    // Arduino is not consuming at least 50mah                                        //
     ////////////////////////////////////////////////////////////////////////////////////
     case wait:
       // Select button controls
-      if (selectPushed) 
-      {
+      if (selectPushed) {
         // If "Salir: Si" is selected, go back to MENU
-        if (measureArrowState) 
-        { 
+        if (measureArrowState) { 
           LED_OFF(); // TODO: Delete
           currentState = menu;
           measureArrowPos = 65;
@@ -213,25 +200,21 @@ void loop(void)
         selectPushed = false;
       }
       // If waiting enough time, go to Measure
-      else if (waitDebounce > measureTime) 
-      {
+      else if (waitDebounce > measureTime) {
         LED_OFF();
         waitDebounce = 0;
         currentState = measure;
       }
-      else
-      {
+      else {
         currentState = wait;
       }
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // MEASURE State: Contains select button controls, goes directly to RECORD
+    // MEASURE State: Contains select button controls, goes directly to RECORD        //
     ////////////////////////////////////////////////////////////////////////////////////
     case measure:
-      if (selectPushed) 
-      {
-        if (measureArrowState)
-        {
+      if (selectPushed) {
+        if (measureArrowState) {
           currentState = menu;
           measureArrowPos = 65;
           measureArrowState = false;
@@ -240,19 +223,16 @@ void loop(void)
         else {}
         selectPushed = false;
       }
-      else
-      {
+      else {
         currentState = record;
       }
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // RECORD State: Contains select button controls, goes to either WAIT or ERROR
+    // RECORD State: Contains select button controls, goes to either WAIT or ERROR    //
     ////////////////////////////////////////////////////////////////////////////////////
     case record:
-      if (selectPushed) 
-      {
-        if (measureArrowState)
-        {
+      if (selectPushed) {
+        if (measureArrowState) {
           currentState = menu;
           measureArrowPos = 65;
           measureArrowState = false;
@@ -272,7 +252,7 @@ void loop(void)
       }
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // ERROR State: Stay in error state until error is fixed, then return to MEASURE
+    // ERROR State: Stay in error state until error is fixed, then return to MEASURE  //
     ////////////////////////////////////////////////////////////////////////////////////
     case error:
       if (SDCardSuccess && printHeader()) {
@@ -287,23 +267,19 @@ void loop(void)
   }
 
   // Perform state action (Moore).
-  switch(currentState) 
-  { 
+  switch(currentState) { 
     ////////////////////////////////////////////////////////////////////////////////////
-    // MENU State: Draw Menu screen, change arrows with toggle button
+    // MENU State: Draw Menu screen, change arrows with toggle button                 //
     ////////////////////////////////////////////////////////////////////////////////////
     case menu:
       // Draw menu screen
       printMenuScreen(menuArrowPos);
-      if (togglePushed)
-      {
-        if (menuArrowState)
-        {
+      if (togglePushed) {
+        if (menuArrowState) {
           menuArrowState = false;
           menuArrowPos = 25;
         }
-        else
-        {
+        else {
           menuArrowState = true;
           menuArrowPos = 45;
         }
@@ -311,7 +287,7 @@ void loop(void)
       }
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // WAIT State: Draw Wait/Measure/Record screen, update debouncer
+    // WAIT State: Draw Wait/Measure/Record screen, update debouncer                  //
     ////////////////////////////////////////////////////////////////////////////////////
     case wait:
       // Draw wait screen
@@ -321,30 +297,22 @@ void loop(void)
       waitDebounce++;
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // MEASURE State: Record data and draw Wait/Measure/Record screen
+    // MEASURE State: Record data and draw Wait/Measure/Record screen                 //
     ////////////////////////////////////////////////////////////////////////////////////
     case measure:
       measureWaitButtons();
+
+      //          *************************************** PM measuring ***************************************
       
       pm.measure();         // PM sensor reads measurements, variables in PM library will contain the results
       pm2_5 = pm.pm2_5;     // Concentration of PM that is 2.5micrometers
       pm10 = pm.pm10;       // Concentration of PM that is 10micrometers
       
       //          *************************************** CO measuring ***************************************
+      
       coRaw = co.measure();
       //This next line subtracts coZero which is a measured rawdata reading in a "zero" ppm CO environment
       ppmCOcal = (coRaw - coZero) * calibratedSlopeCO + calibratedInterceptCO;
-      
-      //Below is a calibration equation that I was testing based on data taken on Feb. 13, 2024
-      //The five data points I used to create the line are (496,0), (516,250), (536,500), (556,750), (576,1000)
-      //I calculated that if x is the raw CO reading from the sensor then the CO concentration is equal to f(x) = 12.5x - 6200
-      //For every 250ppm increase in CO we saw a 20 unit increase in raw data output hence the slope 250 / 20 = 12.5
-      //When graphing data points the y intercept was at point (0,-6200) with the x-intercept of (496,0)
-      //We would only use the below equation if we chose not to use the above equation with the coZero value
-
-      //   f(x)  =  12.5     x    - 6200
-//      ppmCOcal = (12.5 * coRaw) - 6215.0;
-
 
       //Before saving data to SD card and printing to screen, check if the number is negative
       //Because there are no negative concentrations of CO, if the value is negative we can set it to zero
@@ -361,25 +329,32 @@ void loop(void)
       co2Raw = co2.measure();
       ppmCO2 = (co2Raw * calibratedSlopeCO2) + calibratedInterceptCO2;   // Concentration of CO2 in parts per million
 
-      printMeasureScreen(measureArrowPos, ppmCOcal, ppmCO2, pm2_5);
+      //Before saving data to SD card and printing to screen, check if the number is negative
+      //Because there are no negative concentrations of CO2, if the value is negative we can set it to zero
+      if (ppmCO2 < 0) { ppmCO2 = 0; }
+
+      //Serial.print statements for realtime readings in the serial monitor
+//      Serial.print("CO2 raw reading: ");
+//      Serial.println(co2Raw); 
+//
+//      Serial.print("CO2 PPM calibrated reading: ");
+//      Serial.println(ppmCO2);
+
+      // we changed the ppmCO2 to coRaw just for testing purposes *******************************************
+      printMeasureScreen(measureArrowPos, ppmCOcal, coRaw, pm2_5);
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // RECORD State: Write data to SD Card file and draw Wait/Measure/Record screen
+    // RECORD State: Write data to SD Card file and draw Wait/Measure/Record screen   //
     ////////////////////////////////////////////////////////////////////////////////////
     case record:
       measureWaitButtons();
 
-      writeSuccess = writeToFile(rtc.now(), ppmCOcal, coRaw, ppmCO2, ppmCO2, pm2_5, pm10);
-      
-//      Serial.print("CO raw after record: ");
-//      Serial.println(coRaw);
-//
-//      Serial.print("CO PPM after record: ");
-//      Serial.println(ppmCOSpec);
-      
+      // we changed the ppmCO2 to coCal just for testing purposes *******************************************
+      writeSuccess = writeToFile(rtc.now(), ppmCOcal, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
+            
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // ERROR State: Display error message
+    // ERROR State: Display error message                                             //
     ////////////////////////////////////////////////////////////////////////////////////
     case error:
       LED_RED();
@@ -387,7 +362,7 @@ void loop(void)
       SDCardSuccess = SD.begin();
       break;
     ////////////////////////////////////////////////////////////////////////////////////
-    // OPTIONS State: Draw Options screen, keep track of options buttons/arrows
+    // OPTIONS State: Draw Options screen, keep track of options buttons/arrows       //
     ////////////////////////////////////////////////////////////////////////////////////
     case options:
       printOptions(optionsArrowPos);
@@ -404,18 +379,14 @@ void loop(void)
 *     "Salir: no" stays in the states
 *     "Salir: si" exits to the menu state
 */
-void measureWaitButtons() 
-{
-  if (togglePushed)
-  {
-    if (measureArrowState) 
-    { 
+void measureWaitButtons() {
+  if (togglePushed) {
+    if (measureArrowState) { 
       // Move arrow to "Salir: no"
       measureArrowState = false; 
       measureArrowPos = 65;
     }
-    else 
-    { 
+    else { 
       // Move arrow to "Salir: si"
       measureArrowState = true;
       measureArrowPos = 85;
@@ -428,72 +399,61 @@ void measureWaitButtons()
 * The toggle button moves the arrow on the screen
 * The select button selects options wherever arrow is located
 */
-void optionsButtons() 
-{
+void optionsButtons() {
   // Toggle through options when toggle button is pushed
-  if (togglePushed) 
-      {
-        togglePushed = false;
-        if (optionsArrowPos == 20) { optionsArrowPos = 55; }
-        else if (optionsArrowPos == 55) { optionsArrowPos = 92; }
-        else if (optionsArrowPos == 92) { optionsArrowPos = 65; }
-        else if (optionsArrowPos == 65) { optionsArrowPos = 85; }
-        else if (optionsArrowPos == 85) { optionsArrowPos = 20; }
-      }
+  if (togglePushed) {
+    togglePushed = false;
+    if (optionsArrowPos == 20) { optionsArrowPos = 55; }
+    else if (optionsArrowPos == 55) { optionsArrowPos = 92; }
+    else if (optionsArrowPos == 92) { optionsArrowPos = 65; }
+    else if (optionsArrowPos == 65) { optionsArrowPos = 85; }
+    else if (optionsArrowPos == 85) { optionsArrowPos = 20; }
+  }
   // Select an option if select buttons is pushed
-  if (selectPushed) 
-      {
-        selectPushed = false;
-        if (optionsArrowPos == 20) { measureTime = 150; Serial.println("10 sec");}
-        else if (optionsArrowPos == 55) { measureTime = (150*3) + (15*5); Serial.println("30 sec");}
-        else if (optionsArrowPos == 92) { measureTime = (150*6) + (15*12); Serial.println("1 min");}
-        else if (optionsArrowPos == 85) 
-        { 
-          // Setup menu state for reentry
-          Serial.println("Enter Menu State");
-          optionsArrowPos = 20;
-          menuArrowPos = 25;
-          menuArrowState = false;
-          clearScreen();
-          currentState = menu; 
-        }
-      }
+  if (selectPushed) {
+    selectPushed = false;
+    if (optionsArrowPos == 20) { measureTime = 150; Serial.println("10 sec");}
+    else if (optionsArrowPos == 55) { measureTime = (150*3) + (15*5); Serial.println("30 sec");}
+    else if (optionsArrowPos == 92) { measureTime = (150*6) + (15*12); Serial.println("1 min");}
+    else if (optionsArrowPos == 85) {  
+      // Setup menu state for reentry
+      Serial.println("Enter Menu State");
+      optionsArrowPos = 20;
+      menuArrowPos = 25;
+      menuArrowState = false;
+      clearScreen();
+      currentState = menu; 
+    }
+  }
 }
 
 // Initializes all of the sensors
-void initSensors(bool pmInit, bool coInit, bool co2Init, bool rtcInit, bool sdInit)
-{
+void initSensors(bool pmInit, bool coInit, bool co2Init, bool rtcInit, bool sdInit) {
   Serial.println("sdInit");
   bool sd = 0;
-  if (sdInit)
-  {
+  if (sdInit) {
     sd = SD.begin();
   }
   Serial.println(sd);
   Serial.println("pmInit");
-  if (pmInit)
-  {
+  if (pmInit) {
     pm.reset_measurement();               // Opens communication with the PM sensor
   }
   Serial.println("co2Init");
-  if (co2Init)
-  {
+  if (co2Init) {
     bool test = co2.scd30.begin();                    // Intializes CO2 sensor
     co2.scd30.setMeasurementInterval(1);  // Fastest communication time with CO2 Sensor
   }
   Serial.println("coInit");
-  if (coInit)
-  {
+  if (coInit) {
 
     // There was never anything here.
 
   }
   Serial.println("rtcInit");
-  if (rtcInit)
-  {
+  if (rtcInit) {
     rtc.begin();  // Initializes real time clock, uses RTC library
-    if (!rtc.isrunning())
-    {
+    if (!rtc.isrunning()) {
       Serial.println("RTC is not running! Setting __DATE__ and __TIME__ to the date and time of last compile.");
       rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); // Will set the real time clock to the time from the computer system
     }
@@ -517,33 +477,27 @@ void initSensors(bool pmInit, bool coInit, bool co2Init, bool rtcInit, bool sdIn
    execution where it left off (in the sleep state action).
 
 */
-void isr()
-{
+void isr() {
   Serial.println("MCU is now awake");
 }
 
-void isrToggle()
-{
+void isrToggle() {
   static unsigned long last_interrupt_time = 0;
   unsigned long interrupt_time = millis();
   // If interrupts come faster than 200ms, assume it's a bounce and ignore
-  if (interrupt_time - last_interrupt_time > 200)
-  {
+  if (interrupt_time - last_interrupt_time > 200) {
     // Write new code here
     Serial.println("Pressed Toggle Button");
     togglePushed = true;
   }
   last_interrupt_time = interrupt_time;
-
 }
 
-void isrSelect()
-{
+void isrSelect() {
   static unsigned long last_interrupt_time = 0;
   unsigned long interrupt_time = millis();
   // If interrupts come faster than 200ms, assume it's a bounce and ignore
-  if (interrupt_time - last_interrupt_time > 200)
-  {
+  if (interrupt_time - last_interrupt_time > 200) {
     // Write new code here
     Serial.println("Pressed Select Button");
     selectPushed = true;
