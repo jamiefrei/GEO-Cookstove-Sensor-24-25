@@ -2,12 +2,11 @@
 // Respira Bien 2023-2024
 // Arduino code for the cookstove sensor
 // This file contains setup() and loop(), as well as functions for initializing the sensors
-// There are 8 files that must accompany this one: CO.cpp, CO.h, CO2.h, Display.ino, 
-// LED_Control.ino, PM.cpp, PM.h, and SD_Card.ino
+// There are 7 files that must accompany this one: CO.cpp, CO.h, CO2.h, Display.ino, 
+// PM.cpp, PM.h, and SD_Card.ino
 // CO.cpp, CO.h, CO2.h, PM.cpp, and PM.h are files that work with the various sensors
 // Display.ino contains functions that control how to display to the screen
 // SD_Card.ino contains functions that set up and store to the SD Card
-// LED_Control contains functions for driving an RGB LED, it is no longer needed and can be removed
 // The GitHub's Readme file contains a block diagram of the code in this file.
 
 #include <Arduino.h>
@@ -36,9 +35,6 @@
 U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ 13, /* data=*/ 11, /* cs=*/ 10, /* dc=*/ 9, /* reset=*/ 8);
 
 // PIN NUMBERS
-#define RED 24        // Pin number for Red in RGB LED
-#define GREEN 26      // Pin number for Green in RGB LED
-#define BLUE 22       // Pin number for Blue in RGB LED
 #define FAN 6         // Pin number for MOSFET (controls power to the fan)
 #define CS 53         // Pin number for SD card reader
 #define INTERRUPT 18  // Pin number for the RTC interrupt
@@ -57,15 +53,15 @@ File myFile;          // SD Card Object
 String fileName = "datos.csv";
 String pm2_5;
 String pm10;
-double ppmCO = 0;
+double ppmCO = 0.0;
 
-double ppmCO2 = 0;
+double ppmCO2 = 0.0;
 double ppmPrelimCO2 = 0.0;
 double coRaw = 0.0;
 double co2Raw = 0.0;
 double ppmCOSpec = 0.0;
 double ppmCOcal = 0.0;
-int ppmCOint = 0;
+
 
 // Volatile variables are involved in state machines and are meant to change often
 volatile bool togglePushed = false;
@@ -78,6 +74,7 @@ volatile int optionsArrowPos = 20;
 volatile int waitDebounce = 0;
 volatile int measureTime = 150; //Every 15 is one second
 
+
 // Calibrated parameters for mapping the CO and CO2 values
 double calibratedInterceptCO = 0;  
 double calibratedSlopeCO = 11.673;
@@ -85,9 +82,20 @@ double coZero = 497.7;    // zero value, subtract this from coRaw to shift the g
 double calibratedInterceptCO2 = 35.02;
 double calibratedSlopeCO2 = 0.8504;
 
+
+// Global Variables for the second counter (to possibly replace the time clock)
+// Second counter last update time
+static unsigned long lastSecondUpdate = 0;
+
+// Seconds since entering the measure state (so far this only resets to zero when the arduino is powered off. If you end a 
+// measurement and start a new one it will just start counting from where it left off)
+static unsigned long secondsCounter = 0;   
+
+
 // Enumeration of state variable for the state machine
 enum state {menu, wait, measure, record, error, options};
 enum state currentState;
+
 
 // All initialization in the setup phase
 void setup(void) {
@@ -116,9 +124,9 @@ void setup(void) {
   pinMode(TOGGLE, INPUT);           // Configures the TOGGLE button as INPUT for Interrupts
   pinMode(INTERRUPT, INPUT_PULLUP); // Initialize the interrupt pin with the internal pull up resistor in the Arduino
   pinMode(FAN, OUTPUT);             // Configures MOSFET pin as OUTPUT
-  pinMode(RED, OUTPUT);             // Configures RED pin as OUTPUT
-  pinMode(BLUE, OUTPUT);            // Configures BLUE pin as OUTPUT
-  pinMode(GREEN, OUTPUT);           // Configures GREEN pin as OUTPUT
+//  pinMode(RED, OUTPUT);             // Configures RED pin as OUTPUT
+//  pinMode(BLUE, OUTPUT);            // Configures BLUE pin as OUTPUT
+//  pinMode(GREEN, OUTPUT);           // Configures GREEN pin as OUTPUT
   digitalWrite(FAN, LOW);           // Sets MOSFET pin to LOW
 
   // Setup Interrupts for buttons
@@ -145,14 +153,12 @@ void setup(void) {
   else {
     Serial.println("failed to make header for file");
   }
-
-
-
-  
+    
 }
 
 // Continuous loop, checks the program state each time to determine what to do
 void loop(void) {
+
   static int fanTimer = 0;
   static bool writeSuccess = false;
   static bool SDCardSuccess = false;
@@ -172,7 +178,6 @@ void loop(void) {
         // Go to Measure screen
         else { 
           currentState = measure;
-          LED_GREEN(); // TODO: Delete
           waitDebounce = 0; 
           clearScreen();
         }
@@ -189,7 +194,6 @@ void loop(void) {
       if (selectPushed) {
         // If "Salir: Si" is selected, go back to MENU
         if (measureArrowState) { 
-          LED_OFF(); // TODO: Delete
           currentState = menu;
           measureArrowPos = 65;
           measureArrowState = false;
@@ -199,11 +203,12 @@ void loop(void) {
       }
       // If waiting enough time, go to Measure
       else if (waitDebounce > measureTime) {
-        LED_OFF();
         waitDebounce = 0;
         currentState = measure;
       } else {
         currentState = wait;
+        // I created a countSeconds function so that while the code is in this state it will be incrementing the second counter
+        countSeconds();
       }
       break;
     ////////////////////////////////////////////////////////////////////////////////////
@@ -219,6 +224,8 @@ void loop(void) {
         } else {}
         selectPushed = false;
       } else {
+        // I created a countSeconds function so that while the code is in this state it will be incrementing the second counter
+        countSeconds();
         currentState = record;
       }
       break;
@@ -235,9 +242,10 @@ void loop(void) {
         } else {}
         selectPushed = false;
       }
+      // I created a countSeconds function so that while the code is in this state it will be incrementing the second counter
+      countSeconds();
       // If the SD Card had an error, go to the ERROR state
       if (writeSuccess) {
-        LED_GREEN();
         currentState = wait;
       } else {
         clearScreen();
@@ -250,7 +258,6 @@ void loop(void) {
     case error:
       if (SDCardSuccess && printHeader()) {
         clearScreen();
-        LED_OFF();
         currentState = measure;
       }
       break;
@@ -285,6 +292,10 @@ void loop(void) {
     case wait:
       // Draw wait screen
       printMeasureScreen(measureArrowPos, ppmCOcal, coRaw, pm2_5);
+
+      // I created a countSeconds function so that while the code is in this state it will be incrementing the second counter
+      countSeconds();
+      
       // Control toggle buttons
       measureWaitButtons();
       waitDebounce++;
@@ -294,6 +305,8 @@ void loop(void) {
     ////////////////////////////////////////////////////////////////////////////////////
     case measure:
       measureWaitButtons();
+      // I created a countSeconds function so that while the code is in this state it will be incrementing the second counter
+      countSeconds();
 
       //          *************************************** PM measuring ***************************************
       
@@ -341,6 +354,8 @@ void loop(void) {
     ////////////////////////////////////////////////////////////////////////////////////
     case record:
       measureWaitButtons();
+      // I created a countSeconds function so that while the code is in this state it will be incrementing the second counter
+      countSeconds();
 
       // we changed the ppmCO2 to coCal just for testing purposes *******************************************
       writeSuccess = writeToFile(rtc.now(), ppmCOcal, coRaw, ppmCO2, co2Raw, pm2_5, pm10);
@@ -350,7 +365,6 @@ void loop(void) {
     // ERROR State: Display error message                                             //
     ////////////////////////////////////////////////////////////////////////////////////
     case error:
-      LED_RED();
       printError();
       SDCardSuccess = SD.begin();
       break;
@@ -362,7 +376,6 @@ void loop(void) {
       optionsButtons();
       break;
     default:
-      LED_MAGENTA();
       break;
   }
 }
@@ -419,6 +432,18 @@ void optionsButtons() {
   }
 }
 
+int countSeconds() {
+  // Update the second counter if at least one second has passed
+  unsigned long currentMillis = millis();
+  if(currentMillis - lastSecondUpdate >= 1000) {
+    lastSecondUpdate = currentMillis;
+    secondsCounter++;
+    Serial.print("Seconds Counting: ");
+    Serial.println(secondsCounter);
+  }
+  return secondsCounter;
+}
+
 // Initializes all of the sensors
 void initSensors(bool pmInit, bool coInit, bool co2Init, bool rtcInit, bool sdInit) {
   Serial.println("sdInit");
@@ -444,6 +469,11 @@ void initSensors(bool pmInit, bool coInit, bool co2Init, bool rtcInit, bool sdIn
   }
   Serial.println("rtcInit");
   if (rtcInit) {
+
+    /*********** we have been having issues with the RTC keeping the correct date and time across days. We reset it and it is correct, then a couple weeks *************/
+    /*********** later is incorrect again. This is why we decided to implement the countSeconds() function to act as a simple seconds counter that increments *************/
+    /*********** whenever the system is in wait, measure and record states. *************/
+    
     rtc.begin();  // Initializes real time clock, uses RTC library
     if (!rtc.isrunning()) {
       Serial.println("RTC is not running! Setting __DATE__ and __TIME__ to the date and time of last compile.");
